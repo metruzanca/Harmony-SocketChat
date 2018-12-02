@@ -1,0 +1,49 @@
+ - Server Side todos - 
+
+Todo: Implement error handling to avoid serer crashing on errors. Also assholes trying to break shit when in class
+
+TODO: save userlist and be able to navigate it when prompted to.
+TODO: send userlist.
+
+TODO: message grouping in console. +General console optimizations and color.
+TODO: manage improper user disconnects. (e.g. closing the window)
+TODO: work out private messages
+TODO: add unique user checking. send warning of already taken username etc (requires pms)
+
+TODO: add check for commands where if message.user.username and username of origin which will be saved on server dont match, sends error message.
+TODO: When server throws errors, it could log the message data and the error that was triggered to help with debugging.
+
+TODO: Initial Random Client color.
+
+TODO: find some more commands to make.
+TODO: Mute user. (mute username & mute IP)
+
+TODO: Implement a system that doesnt allow people to impersinate the server, either by making 'server' not a possible username or by making the server have a verification symbol of sorts (like social media).
+
+TODO: Issue when typing in the console where other console.log()s will ruin the console input.
+
+ - CLient Side Todos - 
+
+TODO: Dark Theme
+
+TODO: Time Stamps.
+
+TODO: After implementing the server's ability to distinguish users messages could simply only contain the message field with optional type where default is message meanwhile the color will be saved as user.color on the server-side. Username might have some uses in authentication, but its to be seen.
+
+/*
+   TODO: Possible commands:
+    ChangeColor:    Writes a non-grouped information message. Changes color serverside and broadcasts to change all occorances of that username color.
+    ChangeName:     Writes a non-grouped information message. Changes username serverside and broadcasts to change all occorances of that name to avoid confusion.
+    Update Notification: Server-side command that alerts all users of an update and adds a refresh button that will refresh the page and automatically reconnect them once page reload is complete.
+*/
+
+TODO: write to screen should be moved out of here and broadcast to all + promises should be used to handle writing your own messages to screen to avoid discrepancies of messages that failed to send.
+let message = user + '|' + type + '|' + value;
+TODO: Implement Promise for error checking. user sends message then waits to receive from server. if its the same message (from him and same contents) then it write to screen. If its from him but different content, that content is treated as error message. This means the message has only been resent to the user who sent it. if the user doesnt receive his own message in x TTL time it will display an error.
+
+TODO: have userpara contain also a profile picture.
+
+TODO: Bad implementation of commands. Can be heavily exploited. (Temporary)
+This check should limit its exploitability to an extent. Though requires implementation of a check for 'Server' not being a valid username first.
+
+TODO: Private messages. Requires both extensive server and extensive client work. 

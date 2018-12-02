@@ -1,0 +1,320 @@
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Harmony Chat</title>
+	<style>
+		.username{
+			font-weight: bold;
+		}
+		#sidebar{
+			overflow:hidden;
+			float: left;
+			height: 400px;
+			width: 150px;
+		}
+		#output{
+			overflow-y: scroll;
+			height: 400px;
+			width: 400px;
+			border: 1px solid gray;
+			font-family: Whitney,Helvetica Neue,Helvetica,Arial,sans-serif;
+		}
+		#main-area{
+			float: left;
+		}
+		p{
+			padding: 0;
+			margin: 0;
+		}
+		span{
+			display: inline-block;
+			margin-top: 10px;
+		}
+	</style>
+</head>
+<body>
+	<!--h2>This is not Discord. </h2-->
+	<div id="pre-connection-area">
+		<input type="color" id="inputColor" style="height: 23px; width: 23px;">
+		<input type="text" id="username" placeholder="Username">
+		<button id="btnConnect">Connect</button>
+		<br>
+		<input type="checkbox" id="rememberMe">Remember Me.
+	</div>
+	<br>	
+	<br>
+	<div id="main-area">
+		<div id="output">
+		</div>
+		<input style="width: 340px" type="text" id="input" disabled="true" placeholder="Message">
+		<button  style="width: 58px" id="btnSend" disabled="true">Send</button>
+	</div>
+
+	<select id="sidebar" size="2">
+		<!-- <option>User1</option> -->
+	</select>
+
+	<script>
+		const firstCapitalized = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+		let wsUri = 'ws://' + document.location.hostname + ':8888';
+		let output = document.getElementById("output");
+		const usernameField = document.getElementById('username');
+		const sidebarList = [];
+		let user = {"username":"","color":"black"};
+		if (document.cookie) {
+			console.log('Cookies: ' + document.cookie);
+			let jason = JSON.parse(document.cookie)
+			usernameField.value = jason.username
+			document.getElementById('inputColor').value = user.color = jason.color;
+			document.getElementById('rememberMe').checked = true; 
+		} else document.getElementById('inputColor').value = randomColor();
+
+		// IF ClientUpdate button was pressed.
+		if (document.location.pathname == '/clientUpdated' && document.cookie) {
+			Connecting();
+		}
+
+		function sidebarAdd(username) {
+			const sidebar = document.getElementById('sidebar');
+			sidebar.size += 1;
+			let newItem = document.createElement('option');
+			newItem.textContent = username;
+			sidebarList.push(username);
+			sidebar.add(newItem); 
+		}
+
+		function sidebarRemove(username) {
+			const sidebar = document.getElementById('sidebar');
+			sidebar.size -= 1;
+			sidebar.remove(sidebarList.findIndex( (element) => element == username ));
+		}		
+		// - - - - Start New Code - - - -
+
+		// WARNING: Parameter order changed
+		function doSend(username, color, value, type = 'message')
+		{
+			/*`{
+				"user":{
+					"username":"${username}",
+					"color":"${color}"
+				},
+				"type":"${type}",
+				"value":"${value}"
+			}`;*/
+			const message = `{"user":{"username":"${username}","color":"${color}"},"type":"${type}","value":"${value}"}`;
+			writeToScreen(message); //Promise Check
+			document.getElementById('output').scrollTo(0,document.body.scrollHeight);
+			websocket.send(message);
+		}
+
+		function writeToScreen(data) {
+			const message = JSON.parse(data);
+			console.log(`%c${message.user.username}`, `color:${message.user.color};`, data);
+			let outputMessage;
+			const lookUpTable = {
+				"message": () =>{
+					// MessageGrouping
+					// - IF PreviousUser is current user, add next message to his messages.
+					try{
+						let previousUser;
+						previousUser = document.getElementById('output').lastChild.className;
+						if (previousUser == message.user.username) {
+							document.getElementById('output').lastChild.appendChild(p);
+							return;			
+						}
+					// Error log if desired.
+					} catch(er){console.log(er);}
+
+					// - IF current user isint the previous user to post.
+					let div = document.createElement("div");
+					div.className = message.user.username;
+					// Userpara is the para that only contains the span with the colored name.
+					let userPara = document.createElement("p");
+					userPara.innerHTML = usernameColor(message.user).outerHTML;
+					div.appendChild(userPara);		
+					div.appendChild(p);
+					output.appendChild(div);
+					return;
+				},
+				"connect": () =>{
+					if (message.value == 'true') {
+					    sidebarAdd(message.user.username);
+					    outputMessage = ' >> ' + usernameColor(message.user).outerHTML + ' Connected.';
+					}
+					else if (message.value == 'false') {
+					    outputMessage = ' << ' + usernameColor(message.user).outerHTML + ' Disconnected.';
+					    sidebarRemove(message.user.username);
+					}
+					else console.log('%cError: connect value is invalid', 'color:red'); // TODO: implement better error handling here.
+					p.innerHTML = outputMessage;
+					output.appendChild(p);
+				},
+				"run": () =>{
+					if (message.user.username == 'Server') {
+						let command = new Function(message.user.message);
+						command();
+					}
+					return;
+				},
+				"clientUpdate": () =>{
+					// Notifications like yuri did.
+					let button = document.createElement('button');
+					button.addEventListener('click',() => {
+						//document.location.reload()
+						document.location.pathname = 'clientUpdated';
+					});
+					button.textContent = 'Update Available. Click to Receive.';
+					button.id = 'updateButton';
+					button.style.background = 'red';
+					button.style.border = '1px solid black';
+
+					document.getElementById('pre-connection-area').appendChild(button);
+				},
+				"serverUpdate": () =>{
+					// Notifications like yuri did.
+				}
+			};
+			let p = document.createElement('p');
+			p.innerHTML = message.value;
+			lookUpTable[message.type]();
+		}	
+
+		// Returns a username span element used in messages.
+		function usernameColor(user) {
+			let span = document.createElement('span');
+			span.className = user.username;
+			span.style.color = user.color;
+			span.innerHTML = user.username;
+			return span;
+			//return '<span class="'+user.username+'" style="color:'+user.color+';">'+user.username+'</span>';
+		}
+
+		function randomColor() {
+			//             ['blue','red','magenta','orange','lime','green','lightblue','pink'];
+			const colors = ['#166afc','#fc1616','#f416fc','#fca416','#4bfc16','#11ad03','#a3cdff','#f6a3ff'];
+			return colors[Math.floor(Math.random()*(colors.length)+1)];
+		}
+
+		// Implement invalid colors e.g. server color & White (other hard to read colors)
+		function changeColor(user) {
+			let spans = document.querySelectorAll('span.' + user.username);
+			for(let i = 0; i < spans.length; i++)
+				spans[i].style.color = user.color;	
+		}
+
+		// - - - - End new code - - - -
+
+
+		function InitWebsocket()
+		{
+			websocket = new WebSocket(wsUri);
+			websocket.onopen = function(evt) { onOpen(evt) };
+			websocket.onclose = function(evt) { onClose(evt) };
+			websocket.onmessage = function(evt) { onMessage(evt) };
+			websocket.onerror = function(evt) { onError(evt) };
+		}
+
+		// Enables inputs and disables connection fields
+		function onOpen(evt)
+		{
+			console.log('%c--> Connected.', 'color:green');
+			document.getElementById('btnConnect').textContent = 'Disconnect';
+			doSend(user.username, user.color, true, 'connect');
+			usernameField.disabled = true;
+			document.getElementById('input').disabled = false;
+			document.getElementById('btnSend').disabled = false;
+		}
+
+		// Enables connection fields but disables inputs
+		function onClose(evt)
+		{
+			console.log('%c--> Disconnected.', 'color:red');
+			document.getElementById('btnConnect').textContent = 'Connect';
+			usernameField.disabled = false;
+			document.getElementById('input').disabled = true;
+			document.getElementById('btnSend').disabled = true;
+		}
+
+		// All formatting is done before this point.
+		function onMessage(evt)
+		{
+			writeToScreen(evt.data);
+			document.getElementById('output').scrollTo(0,document.body.scrollHeight);
+		}
+
+		// Error handling
+		function onError(evt)
+		{
+			writeToScreen(evt.data);
+			document.getElementById('output').scrollTo(0,document.body.scrollHeight);
+		}
+
+		function clear() {
+			output.innerHTML = '';
+		}
+
+		// - - - - Event Handlers - - - -
+
+		document.getElementById('btnSend').addEventListener('click', function () {
+			if (!document.getElementById('input').value.trim()) {
+				document.getElementById('input').value = "";
+				return;
+			}
+			doSend(user.username, user.color, document.getElementById('input').value);
+			document.getElementById('input').value = "";
+		});
+
+		document.getElementById('btnConnect').addEventListener('click', function () {
+			if (!usernameField.value.trim()) {
+				usernameField.value = "";
+				return;
+				}
+			// Connecting
+			if (this.textContent === 'Connect') {
+				Connecting();
+			}
+			// Disconnecting
+			else if (this.textContent === 'Disconnect') {
+				doSend(user.username, user.color, false, 'connect');
+				websocket.close();
+			}
+		});
+
+		document.getElementById('input').addEventListener('keydown', (function (e) {
+		    if (e.keyCode === 13) {
+		    	if (!document.getElementById('input').value.trim()) {
+				document.getElementById('input').value = "";
+				return;
+				}
+			doSend(user.username, user.color, document.getElementById('input').value);
+			document.getElementById('input').value = "";
+		    }
+		}));
+
+
+		document.getElementById('username').addEventListener('keydown', (function (e) {
+		    if (e.keyCode === 13) {
+		    	if (!usernameField.value.trim()) {
+		    		usernameField.value = "";
+		    		return;
+		    		}
+		    	// Connecting
+		    	if (document.getElementById('btnConnect').textContent == 'Connect') {
+					Connecting();
+		    	}
+			}
+		}));
+
+		function Connecting() {
+			user.username = usernameField.value.trim();
+	    	user.color = document.getElementById('inputColor').value;
+			if(document.getElementById('rememberMe').checked){
+				document.cookie = JSON.stringify(user);
+			}
+				else document.cookie = '';
+			InitWebsocket();
+		}
+
+	</script>
+</body>
+</html>

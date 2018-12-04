@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const WebSocket = require('ws');
-
+const userList = {};
 // - - - - HTTP - - - -
 
 setTerminalTitle("Harmony WebChat Server");
@@ -17,7 +17,7 @@ console.log('HTTP\tSERVER\t--> Running at port: 8080');
 
 // - - - - SOCKET - - - -
 
-const wss = new WebSocket.Server({ port: 8888 });
+const wss = new WebSocket.Server({ port: 8888, clientTracking: true });
 console.log('SOCKET\tSERVER\t--> Running at port: 8888');
 
 // Broadcast to all.
@@ -29,18 +29,21 @@ wss.broadcast = function broadcast(data) {
     });
 };
 
-wss.on('connection', function connection(ws) {
+wss.on('connection', function connection(ws, req) {
     ws.on('message', function incoming(data) {
-        
+        try {
         //console.log(data);
         const message = JSON.parse(data);
-
+        
         let outputMessage;
         const lookUpTable = {
             'message'   : () =>{
-                console.log(message.user.username + ' > ' + message.value)
+                console.log(userList);
+                console.log('[' + req.connection.remoteAddress + ']: ' +  message.user.username + ' > ' + message.value)
             },
             'connect'   : () =>{
+
+                userList[message.user.username] = req.connection.remoteAddress;
                 if (message.value == 'true') {
                     console.log('\x1b[1;32m%s\x1b[0m', (' --> ' + message.user.username))
                 }
@@ -51,6 +54,13 @@ wss.on('connection', function connection(ws) {
                 //https://stackoverflow.com/questions/9781218/how-to-change-node-jss-console-font-color
                 //https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
             },
+            'clientUpdate': () => {
+                console.log('\x1b[1;33m%s\x1b[0m', ' - Client Update Prompted. - ');
+            },
+            'run': () => {
+                console.log('\x1b[1;34m%s\x1b[0m', ' - Broadcasting a Command - ');
+            }
+            
         };
         lookUpTable[message.type]();
         // Broadcast to everyone else.
@@ -59,6 +69,10 @@ wss.on('connection', function connection(ws) {
                 client.send(data);
             }
         });
+        }
+        catch(er){
+            console.log('\x1b[1;31m%s\x1b[0m', 'Something went wrong:\n', er);
+        }
     });
 });
 

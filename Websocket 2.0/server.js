@@ -1,3 +1,6 @@
+//TODO change all fuctions to be verbs. such as Get or Is or Set.
+
+
 const http = require('http');
 const fs = require('fs');
 const WebSocket = require('ws');
